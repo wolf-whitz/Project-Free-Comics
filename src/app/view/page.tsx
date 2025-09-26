@@ -2,18 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, Typography, Chip, Button, CircularProgress } from "@mui/material";
+import { Box, Typography, Chip, Button, CircularProgress, Avatar, IconButton } from "@mui/material";
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { getReaderUrl } from "~/lib/storage";
 
-type MangaChapter = { title: string; url: string };
+type MangaChapter = { title: string; chapter: number };
 
 type MangaDetails = {
-  manga_id: string;
+  manga_id?: string;
   manga_name?: string;
   manga_description?: string;
   manga_image?: string;
   genres?: string[];
   manga_chapters?: MangaChapter[];
+  max_chapters?: number;
 };
 
 export default function ViewPage() {
@@ -37,9 +39,7 @@ export default function ViewPage() {
   ];
 
   useEffect(() => {
-    getReaderUrl()
-      .then(setConnectionUrl)
-      .catch(() => setError("Failed to get reader URL"));
+    getReaderUrl().then(setConnectionUrl).catch(() => setError("Failed to get reader URL"));
   }, []);
 
   useEffect(() => {
@@ -61,12 +61,10 @@ export default function ViewPage() {
         });
 
         if (!res.ok) throw new Error("Failed to fetch manga details");
-        const data: { spiderId: string; results?: MangaDetails[]; error?: string } =
-          await res.json();
+        const data: { spiderId: string; results?: MangaDetails[]; error?: string } = await res.json();
 
         if (data.error) throw new Error(data.error);
-        if (!data.results || data.results.length === 0)
-          throw new Error("No manga details found");
+        if (!data.results || data.results.length === 0) throw new Error("No manga details found");
 
         setDetails(data.results[0]);
       } catch (err: any) {
@@ -103,40 +101,70 @@ export default function ViewPage() {
     );
   }
 
-  return (
-    <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-      <Typography variant="h4">{details.manga_name}</Typography>
+  const chapterCount = details.manga_chapters?.length ?? 0;
 
-      <Box sx={{ display: "flex", gap: 2 }}>
-        {details.manga_image && (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-            <Box
-              component="img"
+  return (
+    <Box>
+      {details.manga_image && (
+        <Box
+          sx={{
+            width: "100%",
+            minHeight: 350,
+            position: "relative",
+            backgroundImage: `linear-gradient(to bottom, rgba(0,0,0,0.7), rgba(0,0,0,0.9)), url(${details.manga_image})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            color: "#fff",
+            display: "flex",
+            alignItems: "flex-end",
+            p: 2,
+          }}
+        >
+          <IconButton
+            sx={{ position: "absolute", top: 16, left: 16, color: "#fff", zIndex: 10 }}
+            onClick={() => router.push("/")}
+          >
+            <ChevronLeftIcon fontSize="large" />
+          </IconButton>
+
+          <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+            <Avatar
               src={details.manga_image}
               alt={details.manga_name}
-              sx={{ width: 200, height: 300, objectFit: "cover", borderRadius: 1 }}
+              variant="rounded"
+              sx={{ width: 140, height: 200, borderRadius: 2, flexShrink: 0 }}
             />
-            <Button
-              variant="contained"
-              size="small"
-              sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
-            >
-              Add to Library
-            </Button>
-          </Box>
-        )}
-        <Box sx={{ flex: 1 }}>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {details.genres?.slice(0, 10).map((g, i) => (
-              <Chip key={i} label={g} size="small" />
-            ))}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, maxWidth: "60%" }}>
+              <Typography variant="h4">{details.manga_name}</Typography>
+              {details.manga_description && details.manga_description.trim() !== "" && (
+                <Typography sx={{ mt: 1, fontSize: 14 }}>{details.manga_description}</Typography>
+              )}
+              {details.genres && details.genres.length > 0 && (
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mt: 1 }}>
+                  {details.genres.map((g, i) => (
+                    <Chip
+                      key={i}
+                      label={g}
+                      size="small"
+                      sx={{ backgroundColor: "rgba(255,255,255,0.2)", color: "#fff" }}
+                    />
+                  ))}
+                </Box>
+              )}
+              <Button
+                variant="contained"
+                sx={{ mt: 2, width: 160, backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
+              >
+                Add to Library
+              </Button>
+            </Box>
           </Box>
         </Box>
-      </Box>
+      )}
 
-      <Box>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          Chapters
+      <Box sx={{ p: 2 }}>
+        <Typography variant="h5" sx={{ mb: 1 }}>
+          Chapters ({chapterCount} / {details.max_chapters ?? chapterCount})
         </Typography>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {details.manga_chapters?.map((ch, i) => (
@@ -144,13 +172,13 @@ export default function ViewPage() {
               key={i}
               variant="outlined"
               sx={{ justifyContent: "flex-start" }}
-              onClick={() => {
+              onClick={() =>
                 router.push(
-                  `/read?chapter=${encodeURIComponent(ch.url)}&manga_id=${details.manga_id}&spiderId=${spiderIdParam}`
-                );
-              }}
+                  `/read?chapter=${i + 1}&manga_id=${details.manga_id}&spiderId=${spiderIdParam}`
+                )
+              }
             >
-              {ch.title}
+              Chapter {i + 1}
             </Button>
           ))}
         </Box>

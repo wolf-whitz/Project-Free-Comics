@@ -1,23 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Box, Typography, TextField, Button } from "@mui/material";
-import { getManifest, saveManifest } from "~/lib/storage";
+import { Box, Typography, TextField } from "@mui/material";
+import { getReaderUrl, saveReaderUrl, getManifest, saveManifest } from "~/lib/storage";
+import { PyrenzBlueButtonWithLoading } from "~/theme";
 
 export function SettingsPage() {
   const [connectionUrl, setConnectionUrl] = useState("");
-  const [manifest, setManifest] = useState<any>(null);
   const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const savedManifest = await getManifest("currentUser");
-      if (savedManifest) setManifest(savedManifest);
+      const savedUrl = await getReaderUrl();
+      if (savedUrl) setConnectionUrl(savedUrl);
     })();
   }, []);
 
   const handleSave = async () => {
     try {
+      setLoading(true);
       const res = await fetch("/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,13 +29,16 @@ export function SettingsPage() {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Failed to register URL");
 
-      await saveManifest("currentUser", data.manifest);
-      setManifest(data.manifest);
-      setStatus("Reader Connection URL saved & manifest loaded ✅");
+      await saveReaderUrl(connectionUrl);
+      await saveManifest(data.manifest);
+
+      setStatus("Reader Connection URL saved ✅");
       setTimeout(() => setStatus(""), 3000);
     } catch (err: any) {
       console.error(err);
       setStatus(`Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -43,34 +48,30 @@ export function SettingsPage() {
         Settings
       </Typography>
 
-      <TextField
-        label="Reader Connection URL"
-        variant="outlined"
-        fullWidth
-        value={connectionUrl}
-        onChange={(e) => setConnectionUrl(e.target.value)}
-        sx={{ mb: 2 }}
-      />
+      <Box sx={{ display: "flex", gap: 2, alignItems: "center", mb: 2 }}>
+        <TextField
+          label="Reader Connection URL"
+          variant="outlined"
+          fullWidth
+          value={connectionUrl}
+          onChange={(e) => setConnectionUrl(e.target.value)}
+        />
 
-      <Button variant="contained" onClick={handleSave}>
-        Save & Load Manifest
-      </Button>
+        <PyrenzBlueButtonWithLoading
+          dataState={loading ? "loading" : undefined}
+          onClick={handleSave}
+        >
+          Save
+        </PyrenzBlueButtonWithLoading>
+      </Box>
 
       {status && (
         <Typography
           variant="body2"
-          sx={{ mt: 1 }}
           color={status.startsWith("Error") ? "error.main" : "success.main"}
         >
           {status}
         </Typography>
-      )}
-
-      {manifest && (
-        <Box sx={{ mt: 2, p: 2, border: "1px solid #ccc", borderRadius: 1 }}>
-          <Typography variant="h6">Manifest Preview:</Typography>
-          <pre style={{ overflowX: "auto" }}>{JSON.stringify(manifest, null, 2)}</pre>
-        </Box>
       )}
     </Box>
   );

@@ -38,22 +38,6 @@ export const componentOverrides = (theme: any) => ({
       },
     },
   },
-  MuiButton: {
-    styleOverrides: {
-      root: {
-        borderColor: theme.palette.primary.main,
-        minWidth: "auto",
-        padding: "6px 12px",
-        "&:hover": {
-          backgroundColor: `${theme.palette.primary.main}20`,
-        },
-      },
-      sizeSmall: {
-        padding: "4px 8px",
-        fontSize: "0.875rem",
-      },
-    },
-  },
   MuiAppBar: {
     styleOverrides: {
       root: {
