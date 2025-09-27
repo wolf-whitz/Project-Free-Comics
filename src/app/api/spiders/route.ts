@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "~/lib/db"
-import { loadManifest } from "~/lib/loadManifest"
+import { loadManifest } from "~/lib/loader"
 
 export async function POST(req: NextRequest) {
   try {

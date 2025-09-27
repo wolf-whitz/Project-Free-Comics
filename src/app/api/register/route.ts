@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { db, initDb } from "~/lib/db"
 import { z } from "zod"
-import { loadManifest } from "~/lib/loadManifest"
+import { loadManifest } from "~/lib/loader"
 
 initDb()
 

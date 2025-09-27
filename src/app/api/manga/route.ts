@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { JSDOM } from "jsdom";
 import { db } from "~/lib/db";
-import { loadManifest, loadSpiderConfig } from "~/lib/loadManifest";
+import { loadManifest, loadSpiderConfig } from "~/lib/loader";
 import type { Spider } from "~/types";
 
 const MangaRequestSchema = z.object({

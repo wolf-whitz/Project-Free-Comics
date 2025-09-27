@@ -21,21 +21,40 @@ export const SpiderTypeSchema = z.object({
 export type SpiderType = z.infer<typeof SpiderTypeSchema>
 
 export const SelectorWithAttributeSchema = z.object({
-  selector: z.string().nullable(),
-  attribute: z.string().nullable(),
+  selector: z.string().optional(),
+  attribute: z.string().optional(),
   text: z.boolean().optional(),
   multiple: z.boolean().optional(),
   arranger: z.enum(["newestFirst", "oldestFirst"]).optional(),
+  parseScriptJson: z.boolean().optional(),
+  jsonPath: z.string().optional(),
 })
 export type SelectorWithAttribute = z.infer<typeof SelectorWithAttributeSchema>
 
 export const SelectorOnlySchema = z.object({
-  selector: z.string().nullable(),
+  selector: z.string().optional(),
+  parseScriptJson: z.boolean().optional(),
+  jsonPath: z.string().optional(),
 })
 export type SelectorOnly = z.infer<typeof SelectorOnlySchema>
 
+export const PageImageSchema = z.object({
+  arrayVar: z
+    .object({
+      variableNames: z.array(z.string()).optional(),
+      matchPattern: z.string().optional(),
+      scriptMatch: z.string().optional(),
+    })
+    .optional(),
+  selectors: z.array(z.string()).optional(),
+  attribute: z.string().optional(),
+  multiple: z.boolean().optional(),
+  parseScriptJson: z.boolean().optional(),
+  jsonPath: z.string().optional(),
+})
+
 export const SpiderItemSchema = z.object({
-  selector: z.string().optional().nullable(),
+  selector: z.string().optional(),
   ProfileLink: SelectorWithAttributeSchema.optional(),
   ProfileTarget: z
     .object({
@@ -45,33 +64,25 @@ export const SpiderItemSchema = z.object({
       Description: SelectorOnlySchema.optional(),
       Genres: z
         .object({
-          selector: z.string().nullable(),
+          selector: z.string().optional(),
           multiple: z.boolean().optional(),
+          parseScriptJson: z.boolean().optional(),
+          jsonPath: z.string().optional(),
         })
         .optional(),
       MangaID: SelectorWithAttributeSchema.optional(),
-      Chapters: SelectorWithAttributeSchema, // REQUIRED
-      PageImage: z
-        .object({
-          arrayVar: z
-            .object({
-              variableNames: z.array(z.string()).optional(),
-              matchPattern: z.string().optional(),
-              scriptMatch: z.string().optional(),
-            })
-            .optional()
-            .nullable(),
-        })
-        .optional()
-        .nullable(),
+      Chapters: SelectorWithAttributeSchema,
+      PageImage: PageImageSchema.optional(),
     })
     .optional(),
   Name: SelectorOnlySchema.optional(),
   HighlightText: SelectorOnlySchema.optional(),
   Genres: z
     .object({
-      selector: z.string().nullable(),
+      selector: z.string().optional(),
       multiple: z.boolean().optional(),
+      parseScriptJson: z.boolean().optional(),
+      jsonPath: z.string().optional(),
     })
     .optional(),
   profileById: z
@@ -90,25 +101,15 @@ export const SpiderItemSchema = z.object({
         Description: SelectorOnlySchema.optional(),
         Genres: z
           .object({
-            selector: z.string().nullable(),
+            selector: z.string().optional(),
             multiple: z.boolean().optional(),
+            parseScriptJson: z.boolean().optional(),
+            jsonPath: z.string().optional(),
           })
           .optional(),
         MangaID: SelectorWithAttributeSchema.optional(),
-        Chapters: SelectorWithAttributeSchema, // REQUIRED
-        PageImage: z
-          .object({
-            arrayVar: z
-              .object({
-                variableNames: z.array(z.string()).optional(),
-                matchPattern: z.string().optional(),
-                scriptMatch: z.string().optional(),
-              })
-              .optional()
-              .nullable(),
-          })
-          .optional()
-          .nullable(),
+        Chapters: SelectorWithAttributeSchema,
+        PageImage: PageImageSchema.optional(),
       }),
     })
     .optional(),

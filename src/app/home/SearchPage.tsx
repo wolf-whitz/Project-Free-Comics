@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Box, Typography, TextField, Chip } from "@mui/material";
+import { Box, Typography, TextField, ButtonGroup } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { PyrenzCard, PyrenzBlueButton } from "~/theme";
+import { PyrenzBlueButton } from "~/theme";
+import { SearchResults } from "~/components";
 
 type SpiderData = {
   results?: any[];
@@ -26,6 +27,7 @@ export function SearchPage() {
   const [resultsBySpider, setResultsBySpider] = useState<SpiderResults>({});
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [filter, setFilter] = useState<"all" | "hasResult">("all");
   const eventSourceRef = useRef<EventSource | null>(null);
   const router = useRouter();
 
@@ -85,6 +87,13 @@ export function SearchPage() {
     });
   };
 
+  const filteredEntries = Object.entries(resultsBySpider).filter(([_, { data }]) => {
+    if (filter === "hasResult") {
+      return data.results && data.results.length > 0;
+    }
+    return true;
+  });
+
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h4" gutterBottom>
@@ -102,80 +111,40 @@ export function SearchPage() {
         />
         <PyrenzBlueButton
           onClick={handleSearch}
-          disabled={!query.trim()}
+          disabled={!query.trim() || loading}
           sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
         >
-          Search
+          {loading ? "Searching..." : "Search"}
         </PyrenzBlueButton>
       </Box>
 
-      {Object.keys(resultsBySpider).length > 0 ? (
-        Object.entries(resultsBySpider).map(([spiderId, { displayName, data }]) => (
-          <Box key={spiderId} sx={{ mb: 3 }}>
-            <Typography variant="subtitle1" sx={{ mb: 1 }}>
-              Results from: {displayName}
-            </Typography>
-            {data.error ? (
-              <Typography color="error">{data.error}</Typography>
-            ) : data.results && data.results.length > 0 ? (
-              <Box
-                sx={{
-                  display: "flex",
-                  overflowX: "auto",
-                  gap: 2,
-                  pb: 1,
-                  "&::-webkit-scrollbar": { display: "none" },
-                  scrollbarWidth: "none",
-                }}
-              >
-                {data.results.map((item, idx) => (
-                  <PyrenzCard key={idx} sx={{ minWidth: 300, display: "flex", flexShrink: 0, gap: 1 }}>
-                    {item.manga_image && (
-                      <Box sx={{ width: 100, flexShrink: 0 }}>
-                        <Box
-                          component="img"
-                          src={item.manga_image}
-                          alt={item.manga_name || "preview"}
-                          sx={{ width: "100%", height: 140, objectFit: "cover", borderRadius: 1 }}
-                        />
-                      </Box>
-                    )}
-                    <Box sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                      {item.manga_name && <Typography variant="subtitle1">{item.manga_name}</Typography>}
-                      {item.genres?.length > 0 && (
-                        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1 }}>
-                          {item.genres.slice(0, 5).map((genre: string, i: number) => (
-                            <Chip key={i} label={genre} size="small" />
-                          ))}
-                        </Box>
-                      )}
-                      {item.manga_id && (
-                        <PyrenzBlueButton
-                          size="small"
-                          onClick={() => {
-                            const searchParams = new URLSearchParams({
-                              manga_id: item.manga_id,
-                              spiderId,
-                            }).toString();
-                            router.push(`/view?${searchParams}`);
-                          }}
-                          sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
-                        >
-                          View
-                        </PyrenzBlueButton>
-                      )}
-                    </Box>
-                  </PyrenzCard>
-                ))}
-              </Box>
-            ) : (
-              <Typography color="text.secondary">{data.warning || "No results found"}</Typography>
-            )}
-          </Box>
-        ))
-      ) : (
-        hasSearched && !loading && <Typography color="text.secondary">No results found</Typography>
+      {Object.keys(resultsBySpider).length > 0 && (
+        <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+          <ButtonGroup>
+            <PyrenzBlueButton
+              onClick={() => setFilter("all")}
+              disabled={filter === "all"}
+              sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
+            >
+              All
+            </PyrenzBlueButton>
+            <PyrenzBlueButton
+              onClick={() => setFilter("hasResult")}
+              disabled={filter === "hasResult"}
+              sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
+            >
+              Has Result
+            </PyrenzBlueButton>
+          </ButtonGroup>
+        </Box>
       )}
+
+      <SearchResults
+        entries={filteredEntries}
+        hasSearched={hasSearched}
+        loading={loading}
+        router={router}
+      />
     </Box>
   );
 }

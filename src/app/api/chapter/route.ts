@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { JSDOM } from "jsdom";
 import axios from "axios";
-import { loadManifest, loadSpiderConfig } from "~/lib/loadManifest";
+import { loadManifest, loadSpiderConfig } from "~/lib/loader";
 
 async function fetchHtml(url: string): Promise<string | null> {
   try {
