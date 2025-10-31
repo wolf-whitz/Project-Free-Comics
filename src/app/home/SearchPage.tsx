@@ -1,10 +1,9 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Box, Typography, TextField, ButtonGroup } from "@mui/material";
+import { Box, Tabs, Tab } from "@mui/material";
 import { useRouter } from "next/navigation";
-import { PyrenzBlueButton } from "~/theme";
-import { SearchResults } from "~/components";
+import { SearchTab, ExtensionsTab  } from "@components/client";
 
 type SpiderData = {
   results?: any[];
@@ -22,6 +21,7 @@ type SpiderResults = {
 const SELECTED_FIELDS = ["manga_id", "manga_name", "genres", "manga_image"] as const;
 
 export function SearchPage() {
+  const [tabValue, setTabValue] = useState(0);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [resultsBySpider, setResultsBySpider] = useState<SpiderResults>({});
@@ -38,9 +38,7 @@ export function SearchPage() {
     setResultsBySpider({});
     setHasSearched(true);
 
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close();
-    }
+    if (eventSourceRef.current) eventSourceRef.current.close();
 
     const fieldsParam = SELECTED_FIELDS.join(",");
     const sseUrl = `/api/search?query=${encodeURIComponent(query)}&fields=${encodeURIComponent(fieldsParam)}`;
@@ -49,14 +47,7 @@ export function SearchPage() {
 
     es.onmessage = (event) => {
       try {
-        const data: {
-          spiderId: string;
-          displayName: string;
-          results?: any[];
-          error?: string;
-          warning?: string;
-        } = JSON.parse(event.data);
-
+        const data = JSON.parse(event.data);
         if (!data.spiderId) return;
 
         setResultsBySpider((prev) => {
@@ -87,64 +78,37 @@ export function SearchPage() {
     });
   };
 
-  const filteredEntries = Object.entries(resultsBySpider).filter(([_, { data }]) => {
-    if (filter === "hasResult") {
-      return data.results && data.results.length > 0;
-    }
-    return true;
-  });
+  const filteredEntries = Object.entries(resultsBySpider).filter(([_, { data }]) =>
+    filter === "hasResult" ? data.results && data.results.length > 0 : true
+  );
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography variant="h4" gutterBottom>
-        Search
-      </Typography>
+      <Tabs
+        value={tabValue}
+        onChange={(_, newValue) => setTabValue(newValue)}
+        sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
+      >
+        <Tab label="Search" />
+        <Tab label="Extensions" />
+      </Tabs>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-        <TextField
-          label="Enter search query"
-          variant="outlined"
-          fullWidth
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+      {tabValue === 0 && (
+        <SearchTab
+          query={query}
+          setQuery={setQuery}
+          handleSearch={handleSearch}
+          loading={loading}
+          resultsBySpider={resultsBySpider}
+          filter={filter}
+          setFilter={setFilter}
+          filteredEntries={filteredEntries}
+          hasSearched={hasSearched}
+          router={router}
         />
-        <PyrenzBlueButton
-          onClick={handleSearch}
-          disabled={!query.trim() || loading}
-          sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
-        >
-          {loading ? "Searching..." : "Search"}
-        </PyrenzBlueButton>
-      </Box>
-
-      {Object.keys(resultsBySpider).length > 0 && (
-        <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-          <ButtonGroup>
-            <PyrenzBlueButton
-              onClick={() => setFilter("all")}
-              disabled={filter === "all"}
-              sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
-            >
-              All
-            </PyrenzBlueButton>
-            <PyrenzBlueButton
-              onClick={() => setFilter("hasResult")}
-              disabled={filter === "hasResult"}
-              sx={{ backgroundColor: "#1976d2", "&:hover": { backgroundColor: "#1565c0" } }}
-            >
-              Has Result
-            </PyrenzBlueButton>
-          </ButtonGroup>
-        </Box>
       )}
 
-      <SearchResults
-        entries={filteredEntries}
-        hasSearched={hasSearched}
-        loading={loading}
-        router={router}
-      />
+      {tabValue === 1 && <ExtensionsTab />}
     </Box>
   );
 }

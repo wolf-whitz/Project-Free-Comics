@@ -1,7 +1,7 @@
 "use client";
 
 import { Box, Typography, Chip } from "@mui/material";
-import { PyrenzCard, PyrenzBlueButton } from "~/theme";
+import { PyrenzCard, PyrenzBlueButton } from "~/components/renderer/theme";
 import { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 type SpiderData = {

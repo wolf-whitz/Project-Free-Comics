@@ -2,11 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, CircularProgress, Slider, IconButton, Button, Typography } from "@mui/material";
+import { Box, CircularProgress, Button, Typography, IconButton, AppBar, Toolbar } from "@mui/material";
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
-import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
-import { getReaderUrl } from "~/lib/storage";
+import { PageSlider } from "@components/client";
 
 interface Page {
   page: number;
@@ -16,7 +14,6 @@ interface Page {
 export default function ReadPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const [connectionUrl, setConnectionUrl] = useState<string | null>(null);
   const mangaId = params.get("manga_id") ?? "";
   const spiderId = params.get("spiderId") ?? "";
   const chapter = params.get("chapter") ?? "";
@@ -28,6 +25,11 @@ export default function ReadPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sliderVisible, setSliderVisible] = useState(true);
   const [finished, setFinished] = useState(false);
+  const [maxChapter, setMaxChapter] = useState<number | null>(null);
+  const [mangaTitle, setMangaTitle] = useState<string>("");
+  const [chapterTitle, setChapterTitle] = useState<string>("");
+  const [menuVisible, setMenuVisible] = useState(true);
+  const lastScrollY = useRef(0);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   const addPage = useCallback((page: Page) => {
@@ -41,29 +43,22 @@ export default function ReadPage() {
   }, [maxPages]);
 
   useEffect(() => {
-    getReaderUrl().then(url => setConnectionUrl(url));
-  }, []);
-
-  useEffect(() => {
-    if (!connectionUrl || !mangaId || !spiderId || !chapter) return;
+    if (!mangaId || !spiderId || !chapter) return;
 
     setPages([]);
     setCurrentPage(1);
     setLoading(true);
     setFinished(false);
+    setMaxChapter(null);
+    setMangaTitle("");
+    setChapterTitle("");
     eventSourceRef.current?.close();
 
-    const query = new URLSearchParams({
-      connectionUrl,
-      manga: mangaId,
-      spiderId,
-      chapter,
-    }).toString();
-
+    const query = new URLSearchParams({ manga: mangaId, spiderId, chapter }).toString();
     const es = new EventSource(`/api/chapter?${query}`);
     eventSourceRef.current = es;
 
-    es.onmessage = async event => {
+    es.onmessage = async (event) => {
       if (!event.data) return;
       if (event.data === "done") {
         setFinished(true);
@@ -82,31 +77,54 @@ export default function ReadPage() {
           const blobUrl = URL.createObjectURL(blob);
           addPage({ page: data.page, blobUrl });
         }
+        if (data.maxChapter) setMaxChapter(data.maxChapter);
+        if (data.mangaTitle) setMangaTitle(data.mangaTitle);
+        if (data.chapterTitle) setChapterTitle(data.chapterTitle);
       } catch {}
     };
 
     es.onerror = () => es.close();
     return () => es.close();
-  }, [connectionUrl, mangaId, spiderId, chapter, addPage]);
+  }, [mangaId, spiderId, chapter, addPage]);
 
-  const handleSliderChange = (_: Event, value: number | number[]) => {
-    if (typeof value === "number") {
-      setCurrentPage(value);
-      const pageEl = document.getElementById(`page-${value}`);
-      if (pageEl) pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
+  useEffect(() => {
+    if (!pages.length) return;
+
+    const handleScroll = () => {
+      const scrollMiddle = window.scrollY + window.innerHeight / 2;
+      let newPage = 1;
+      for (const p of pages) {
+        const el = document.getElementById(`page-${p.page}`);
+        if (el && el.offsetTop <= scrollMiddle) newPage = p.page;
+      }
+      setCurrentPage(newPage);
+
+      const currentY = window.scrollY;
+      if (currentY > lastScrollY.current && currentY > 50) setMenuVisible(false);
+      else setMenuVisible(true);
+      lastScrollY.current = currentY;
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [pages]);
 
   return (
     <Box sx={{ position: "relative", width: "100%", cursor: "pointer" }} onClick={() => setSliderVisible(v => !v)}>
-      <IconButton
-        sx={{ position: "fixed", top: 16, left: 16, zIndex: 1000, backgroundColor: "rgba(0,0,0,0.4)", color: "#fff" }}
-        onClick={() => router.push("/")}
-      >
-        <ChevronLeftIcon fontSize="large" />
-      </IconButton>
+      <AppBar position="fixed" sx={{ transform: menuVisible ? "translateY(0)" : "translateY(-100%)", transition: "transform 0.3s ease" }}>
+        <Toolbar sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", "&:hover .back-button": { opacity: 1 } }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <IconButton className="back-button" onClick={() => router.push("/")}>
+              <ChevronLeftIcon />
+            </IconButton>
+            <Typography variant="h6" noWrap>{mangaTitle || "Loading..."}</Typography>
+          </Box>
+          <Typography variant="subtitle2">{chapterTitle || `Chapter ${chapter}`}</Typography>
+        </Toolbar>
+      </AppBar>
 
-      <Box display="flex" flexDirection="column" alignItems="center" width="100%" pb={10}>
+      <Box display="flex" flexDirection="column" alignItems="center" width="100%" pt={10} pb={10}>
         {pages.map(p => (
           <Box
             key={p.page}
@@ -114,83 +132,47 @@ export default function ReadPage() {
             component="img"
             src={p.blobUrl}
             alt={`Page ${p.page}`}
-            sx={{
-              width: "100%",
-              display: "block",
-              objectFit: "cover",
-              margin: 0,
-              padding: 0
-            }}
+            sx={{ width: "100%", display: "block", objectFit: "cover", margin: 0, padding: 0 }}
           />
         ))}
-        {loading && (
-          <Box py={4}>
-            <CircularProgress />
-          </Box>
-        )}
+
+        {loading && <Box py={4}><CircularProgress /></Box>}
+
         {finished && (
           <Box sx={{ mt: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" color="secondary">
-              Finished: {chapter}
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={() => router.push(`/read?chapter=${encodeURIComponent(Number(chapter) + 1)}&manga_id=${mangaId}&spiderId=${spiderId}`)}
-            >
-              Next Chapter
-            </Button>
+            <Typography variant="h6" color="secondary">Finished: {chapter}</Typography>
+            {(!maxChapter || Number(chapter) < maxChapter) && (
+              <Button
+                variant="contained"
+                onClick={() =>
+                  router.push(`/read?chapter=${encodeURIComponent(Number(chapter) + 1)}&manga_id=${mangaId}&spiderId=${spiderId}`)
+                }
+              >
+                Next Chapter
+              </Button>
+            )}
           </Box>
         )}
       </Box>
 
       {sliderVisible && pages.length > 0 && (
-        <Box
-          sx={{
-            position: "fixed",
-            bottom: 16,
-            left: "50%",
-            transform: "translateX(-50%)",
-            px: 2,
-            py: 1,
-            bgcolor: "rgba(0,0,0,0.6)",
-            borderRadius: 50,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            zIndex: 999,
-            width: "90%",
-            maxWidth: 600,
+        <PageSlider
+          currentPage={currentPage}
+          maxPages={maxPages ?? pages.length}
+          onChange={(value) => {
+            setCurrentPage(value);
+            const pageEl = document.getElementById(`page-${value}`);
+            if (pageEl) pageEl.scrollIntoView({ behavior: "smooth", block: "start" });
           }}
-        >
-          <IconButton
-            sx={{ color: "#fff" }}
-            onClick={() => router.push(`/read?chapter=${encodeURIComponent(Number(chapter) - 1)}&manga_id=${mangaId}&spiderId=${spiderId}`)}
-          >
-            <ArrowBackIosNewIcon />
-          </IconButton>
-          <Typography sx={{ color: "#fff", minWidth: 40, textAlign: "center" }}>
-            {currentPage} / {maxPages ?? pages.length}
-          </Typography>
-          <Slider
-            min={1}
-            max={maxPages ?? pages.length}
-            value={currentPage}
-            onChange={handleSliderChange}
-            sx={{
-              color: "#1976d2",
-              flex: 1,
-              height: 6,
-              borderRadius: 3,
-              '& .MuiSlider-thumb': { width: 16, height: 16 },
-            }}
-          />
-          <IconButton
-            sx={{ color: "#fff" }}
-            onClick={() => router.push(`/read?chapter=${encodeURIComponent(Number(chapter) + 1)}&manga_id=${mangaId}&spiderId=${spiderId}`)}
-          >
-            <ArrowForwardIosIcon />
-          </IconButton>
-        </Box>
+          onPrevChapter={() =>
+            router.push(`/read?chapter=${encodeURIComponent(Number(chapter) - 1)}&manga_id=${mangaId}&spiderId=${spiderId}`)
+          }
+          onNextChapter={() => {
+            if (!maxChapter || Number(chapter) < maxChapter) {
+              router.push(`/read?chapter=${encodeURIComponent(Number(chapter) + 1)}&manga_id=${mangaId}&spiderId=${spiderId}`);
+            }
+          }}
+        />
       )}
     </Box>
   );

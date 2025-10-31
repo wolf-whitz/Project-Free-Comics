@@ -1,7 +1,15 @@
 import { NextRequest } from "next/server";
 import { JSDOM } from "jsdom";
 import axios from "axios";
-import { loadManifest, loadSpiderConfig } from "~/lib/loader";
+import { db } from "@database/server/init";
+import { loadManifest, loadSpiderConfig } from "~/spider/loader";
+import { z } from "zod";
+
+const ChapterQuerySchema = z.object({
+  spiderId: z.string().min(1),
+  chapter: z.string().regex(/^\d+$/),
+  manga: z.string().min(1),
+});
 
 async function fetchHtml(url: string): Promise<string | null> {
   try {
@@ -12,73 +20,89 @@ async function fetchHtml(url: string): Promise<string | null> {
   }
 }
 
-async function getChapterPages(mangaId: string, chapterNumber: number, spider: any) {
+async function getChapterPagesAndMaxChapter(
+  mangaId: string,
+  chapterNumber: number,
+  spider: any
+) {
   const profileById = spider.itemConfig?.profileById;
-  if (!profileById) return [];
+  if (!profileById) return { pages: [], maxChapter: null, mangaTitle: "", chapterTitle: "" };
 
   const profileUrl = profileById.urlPattern.replace("{manga_id}", mangaId);
   const html = await fetchHtml(profileUrl);
-  if (!html) return [];
+  if (!html) return { pages: [], maxChapter: null, mangaTitle: "", chapterTitle: "" };
 
   const document = new JSDOM(html).window.document;
-  const chapterSelector = profileById.ProfileTarget?.Chapters?.selector;
-  if (!chapterSelector) return [];
 
-  let chapterLinks = Array.from(document.querySelectorAll(chapterSelector))
-    .map(el => (el as HTMLAnchorElement).getAttribute("href") ?? "")
-    .filter(Boolean);
+  const mangaTitle = profileById.ProfileTarget?.Name
+    ? (await (async () => {
+        const el = document.querySelector(profileById.ProfileTarget.Name.selector);
+        return el?.textContent?.trim() ?? "";
+      })())
+    : "";
+
+  const chapterSelector = profileById.ProfileTarget?.Chapters?.selector;
+  const chapters = chapterSelector
+    ? Array.from(document.querySelectorAll(chapterSelector))
+        .map((el) => (el as HTMLAnchorElement).getAttribute("href") ?? "")
+        .filter(Boolean)
+    : [];
 
   if (profileById.ProfileTarget?.Chapters?.arranger === "newestFirst") {
-    chapterLinks.reverse();
+    chapters.reverse();
   }
 
-  const chapterLinkRaw = chapterLinks[chapterNumber - 1];
-  if (!chapterLinkRaw) return [];
+  const maxChapter = chapters.length;
+  const chapterLinkRaw = chapters[chapterNumber - 1];
+  const chapterTitle = profileById.ProfileTarget?.Chapters?.titleSelector
+    ? document.querySelector(profileById.ProfileTarget.Chapters.titleSelector)?.textContent?.trim() ?? `Chapter ${chapterNumber}`
+    : `Chapter ${chapterNumber}`;
+
+  if (!chapterLinkRaw) return { pages: [], maxChapter, mangaTitle, chapterTitle };
 
   const chapterUrl = chapterLinkRaw.startsWith("http")
     ? chapterLinkRaw
     : new URL(chapterLinkRaw, profileUrl).toString();
 
   const chapterHtml = await fetchHtml(chapterUrl);
-  if (!chapterHtml) return [];
+  if (!chapterHtml) return { pages: [], maxChapter, mangaTitle, chapterTitle };
 
   const chapterDoc = new JSDOM(chapterHtml).window.document;
   const pages: Array<{ page: number; url: string }> = [];
+  const pageConfig = profileById.ProfileTarget?.PageImage;
 
-const pageConfig = profileById.ProfileTarget?.PageImage;
+  if (pageConfig?.arrayVar) {
+    const variableNames: string[] = pageConfig.arrayVar.variableNames ?? [];
+    const scriptMatch: string = pageConfig.arrayVar.scriptMatch ?? "";
 
-if (pageConfig?.arrayVar) {
-  const variableNames: string[] = pageConfig.arrayVar.variableNames ?? [];
-  const scriptMatch: string = pageConfig.arrayVar.scriptMatch ?? "";
+    const scripts: string[] = Array.from(chapterDoc.querySelectorAll("script"))
+      .map((s) => s.textContent ?? "")
+      .filter((s) => scriptMatch.split(" ").every((str) => s.includes(str)));
 
-  const scripts: string[] = Array.from(chapterDoc.querySelectorAll("script"))
-    .map(s => s.textContent ?? "")
-    .filter(s => scriptMatch.split(" ").every((str: string) => s.includes(str)));
-
-  for (const script of scripts) {
-    for (const varName of variableNames) {
-      const regex = new RegExp(`${varName}\\s*=\\s*\\[(.*?)\\];`, "s");
-      const match = script.match(regex);
-      if (match?.[1]) {
-        const urls: string[] = match[1]
-          .split(",")
-          .map(u => u.trim().replace(/^['"]|['"]$/g, ""))
-          .filter(u => u.startsWith("http"));
-        urls.forEach(url => pages.push({ page: pages.length + 1, url }));
+    for (const script of scripts) {
+      for (const varName of variableNames) {
+        const regex = new RegExp(`${varName}\\s*=\\s*\\[(.*?)\\];`, "s");
+        const match = script.match(regex);
+        if (match?.[1]) {
+          const urls: string[] = match[1]
+            .split(",")
+            .map((u) => u.trim().replace(/^['"]|['"]$/g, ""))
+            .filter((u) => u.startsWith("http"));
+          urls.forEach((url) => pages.push({ page: pages.length + 1, url }));
+        }
       }
     }
   }
-}
 
   if (!pages.length) {
     const selector = pageConfig?.selector ?? "img";
     Array.from(chapterDoc.querySelectorAll(selector))
-      .map(img => (img as HTMLImageElement).src)
-      .filter(src => src && src.startsWith("http"))
-      .forEach(url => pages.push({ page: pages.length + 1, url }));
+      .map((img) => (img as HTMLImageElement).src)
+      .filter((src) => src && src.startsWith("http"))
+      .forEach((url) => pages.push({ page: pages.length + 1, url }));
   }
 
-  return pages;
+  return { pages, maxChapter, mangaTitle, chapterTitle };
 }
 
 function arrayBufferToBase64Safe(buffer: ArrayBuffer) {
@@ -97,29 +121,34 @@ function arrayBufferToBase64Safe(buffer: ArrayBuffer) {
 
 export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
-  const params = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const connectionUrl = params.connectionUrl ?? "";
-  const spiderId = params.spiderId ?? "";
-  const chapter = parseInt(params.chapter ?? "", 10);
-  const mangaId = params.manga ?? "";
+  const queryParams = Object.fromEntries(req.nextUrl.searchParams.entries());
+  const parseResult = ChapterQuerySchema.safeParse(queryParams);
 
-  if (!connectionUrl || !spiderId || !chapter || !mangaId) {
-    return new Response("Missing parameters", { status: 400 });
-  }
+  if (!parseResult.success) return new Response("Invalid query parameters", { status: 400 });
 
-  const manifest = await loadManifest(connectionUrl);
+  const { spiderId, chapter, manga } = parseResult.data;
+  const chapterNumber = parseInt(chapter, 10);
+
+  const row = db
+    .prepare("SELECT connection_url FROM user_data LIMIT 1")
+    .get() as { connection_url?: string } | undefined;
+
+  if (!row?.connection_url) return new Response("No registered connection URL found", { status: 400 });
+
+  const manifest = await loadManifest(row.connection_url);
   if (!manifest) return new Response("Failed to load manifest", { status: 500 });
 
-  const crawler = manifest.crawlers.find(c => c.id === spiderId);
+  const crawler = manifest.crawlers.find((c) => c.id === spiderId);
   if (!crawler) return new Response(`Spider '${spiderId}' not found`, { status: 404 });
 
   const spider = await loadSpiderConfig(crawler.link);
   if (!spider) return new Response("Failed to load spider config", { status: 500 });
 
+  const { pages, maxChapter, mangaTitle, chapterTitle } = await getChapterPagesAndMaxChapter(manga, chapterNumber, spider);
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        const pages = await getChapterPages(mangaId, chapter, spider);
         if (!pages.length) {
           controller.enqueue(encoder.encode("data: done\n\n"));
           controller.close();
@@ -135,7 +164,11 @@ export async function GET(req: NextRequest) {
             if (!buffer.byteLength || buffer.byteLength > 5_000_000) continue;
 
             const base64 = arrayBufferToBase64Safe(buffer);
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ page: page.page, image: `data:image/webp;base64,${base64}` })}\n\n`));
+            controller.enqueue(
+              encoder.encode(
+                `data: ${JSON.stringify({ page: page.page, image: `data:image/webp;base64,${base64}`, maxChapter, mangaTitle, chapterTitle })}\n\n`
+              )
+            );
           } catch {}
         }
 
@@ -144,14 +177,14 @@ export async function GET(req: NextRequest) {
       } catch {
         controller.close();
       }
-    }
+    },
   });
 
   return new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
-      Connection: "keep-alive"
-    }
+      Connection: "keep-alive",
+    },
   });
 }

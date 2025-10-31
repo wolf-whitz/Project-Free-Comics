@@ -28,6 +28,7 @@ export const SelectorWithAttributeSchema = z.object({
   arranger: z.enum(["newestFirst", "oldestFirst"]).optional(),
   parseScriptJson: z.boolean().optional(),
   jsonPath: z.string().optional(),
+  fetch: z.boolean().optional(),
 })
 export type SelectorWithAttribute = z.infer<typeof SelectorWithAttributeSchema>
 
@@ -35,6 +36,7 @@ export const SelectorOnlySchema = z.object({
   selector: z.string().optional(),
   parseScriptJson: z.boolean().optional(),
   jsonPath: z.string().optional(),
+  fetch: z.boolean().optional(),
 })
 export type SelectorOnly = z.infer<typeof SelectorOnlySchema>
 
@@ -51,6 +53,7 @@ export const PageImageSchema = z.object({
   multiple: z.boolean().optional(),
   parseScriptJson: z.boolean().optional(),
   jsonPath: z.string().optional(),
+  fetch: z.boolean().optional(),
 })
 
 export const SpiderItemSchema = z.object({
@@ -68,11 +71,13 @@ export const SpiderItemSchema = z.object({
           multiple: z.boolean().optional(),
           parseScriptJson: z.boolean().optional(),
           jsonPath: z.string().optional(),
+          fetch: z.boolean().optional(),
         })
         .optional(),
       MangaID: SelectorWithAttributeSchema.optional(),
       Chapters: SelectorWithAttributeSchema,
       PageImage: PageImageSchema.optional(),
+      fetch: z.boolean().optional(),
     })
     .optional(),
   Name: SelectorOnlySchema.optional(),
@@ -83,11 +88,13 @@ export const SpiderItemSchema = z.object({
       multiple: z.boolean().optional(),
       parseScriptJson: z.boolean().optional(),
       jsonPath: z.string().optional(),
+      fetch: z.boolean().optional(),
     })
     .optional(),
   profileById: z
     .object({
       urlPattern: z.string(),
+      fetch: z.boolean().optional(),
       replace: z
         .object({
           pattern: z.string(),
@@ -105,11 +112,13 @@ export const SpiderItemSchema = z.object({
             multiple: z.boolean().optional(),
             parseScriptJson: z.boolean().optional(),
             jsonPath: z.string().optional(),
+            fetch: z.boolean().optional(),
           })
           .optional(),
         MangaID: SelectorWithAttributeSchema.optional(),
         Chapters: SelectorWithAttributeSchema,
         PageImage: PageImageSchema.optional(),
+        fetch: z.boolean().optional(),
       }),
     })
     .optional(),

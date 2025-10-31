@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
+
     "start": "next start",
     "lint": "eslint",
+    
     "electron:dev": "concurrently \"bun dev\" \"bun x wait-on http://localhost:3000 && electron electron/main.js\"",
     "electron:build": "bun run build && electron-builder"
   },
@@ -17,6 +19,8 @@
     "@mui/material": "^7.3.2",
     "@types/better-sqlite3": "^7.6.13",
     "@types/jsdom": "^21.1.7",
+    "@types/lodash.debounce": "^4.0.9",
+    "@types/msgpack-lite": "^0.1.11",
     "@types/random-useragent": "^0.3.3",
     "@types/ws": "^8.18.1",
     "axios": "^1.12.2",
@@ -25,10 +29,12 @@
     "cloudscraper": "^4.6.0",
     "concurrently": "^9.2.1",
     "framer-motion": "^12.23.13",
+    "i": "^0.3.7",
     "jsdom": "^27.0.0",
     "jsonpath-plus": "^10.3.0",
     "localforage": "^1.10.0",
     "lodash.debounce": "^4.0.8",
+    "msgpack-lite": "^0.1.26",
     "next": "15.5.3",
     "random-useragent": "^0.5.0",
     "react": "19.1.0",

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Typography, Chip, Button, CircularProgress, Avatar, IconButton } from "@mui/material";
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import { getReaderUrl } from "~/lib/storage";
+import { getReaderUrl } from "@database/client/init";
 
 type MangaChapter = { title: string; chapter: number };
 

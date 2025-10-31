@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Box, Typography, Card, CardMedia, CardContent } from "@mui/material";
-import { getAllManga, Manga } from "~/lib/mangaDb";
+import { getAllManga, Manga } from "@database/client/mangaDb";
 
 export function Library() {
   const [mangaList, setMangaList] = useState<Manga[]>([]);

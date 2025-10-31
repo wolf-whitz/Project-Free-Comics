@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { Box, Typography, TextField } from "@mui/material";
-import { getReaderUrl, saveReaderUrl, getManifest, saveManifest } from "~/lib/storage";
-import { PyrenzBlueButtonWithLoading } from "~/theme";
+import { getReaderUrl, saveReaderUrl, getManifest, saveManifest } from "@database/client/init";
+import { PyrenzBlueButtonWithLoading } from "@components/renderer/theme";
 
 export function SettingsPage() {
   const [connectionUrl, setConnectionUrl] = useState("");
