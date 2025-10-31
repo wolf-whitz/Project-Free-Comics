@@ -34,7 +34,7 @@ export function SettingsPage() {
       const savedManifest = await getManifest();
       if (savedManifest?.proxyServer) {
         const proxyVal = savedManifest.proxyServer;
-        if (["FlarreSolverr", "Byparr", "Default"].includes(proxyVal)) {
+        if (["FlareSolverr", "Byparr", "Default"].includes(proxyVal)) {
           setSelectedProxy(proxyVal);
         }
       }
@@ -148,7 +148,7 @@ export function SettingsPage() {
             label="Change Proxy Server"
             onChange={(e) => handleProxyChange(e.target.value)}
           >
-            <MenuItem value="FlarreSolverr">FlarreSolverr</MenuItem>
+            <MenuItem value="FlareSolverr">FlareSolverr</MenuItem>
             <MenuItem value="Byparr">Byparr</MenuItem>
             <MenuItem value="Default">Default</MenuItem>
           </Select>
