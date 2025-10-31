@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, initDb } from "~/lib/db";
+import { db, initDb } from "@database/server/init";
 
 initDb();
 

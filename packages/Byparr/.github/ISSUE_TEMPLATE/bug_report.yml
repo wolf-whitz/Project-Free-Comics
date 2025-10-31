@@ -1,0 +1,78 @@
+name: Bug report
+description: Create a bug report
+assignees: ThePhaseless
+labels: bug
+
+body:
+  - type: checkboxes
+    attributes:
+      label: "I've completed the following steps:"
+      options:
+        - label: Read Loop Warning on Readme
+        - label: Done the troubleshooting from Readme
+        - label: Checked if such issue already exists
+        - label: Checked other websites with Cloudflare Turnstile
+        - label: I am able to access the webpage from my browser
+  - type: checkboxes
+    attributes:
+      label: "If checked other websites with Cloudflare Turnstile:"
+      options:
+        - label: Other websites do work.
+        - label: Other websites do not work.
+
+  - type: input
+    id: docker-host
+    attributes:
+      label: OS/Docker Host
+      placeholder: e.g. Docker, WSL2, Ubuntu, Windows 
+
+  - type: input
+    id: platform-model
+    attributes:
+      label: Platform and model
+      placeholder: e.g. Synology, PC, Laptop, RPi 3
+
+  - type: input
+    id: architecture
+    attributes:
+      label: Architecture
+      placeholder: e.g. ARM64
+
+  - type: input
+    id: website
+    attributes:
+      label: Example website/URL that does not work
+      placeholder: e.g. https://nowsecure.nl
+
+  - type: textarea
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "Example: The application crashes when trying to load a new file"
+  
+  - type: textarea
+    id: config
+    attributes:
+      label: Docker Compose config
+      placeholder: |
+        ```yaml
+        services:
+          ...
+        ```
+  - type: textarea
+    id: prowlarr-logs
+    attributes:
+      label: Prowlarr Logs
+      placeholder: |
+        ```
+        put logs between 3x `
+        ```
+
+  - type: textarea
+    id: byparr-logs
+    attributes:
+      label: Byparr Logs
+      placeholder: |
+        ```
+        put logs between 3x `
+        ```

@@ -1,0 +1,17 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "console": "integratedTerminal",
+      "env": {
+        "LOG_LEVEL": "DEBUG"
+      },
+      "purpose": ["debug-test", "debug-in-terminal"],
+      "justMyCode": false,
+      "name": "Python Debugger: Main",
+      "program": "main.py",
+      "request": "launch",
+      "type": "debugpy"
+    }
+  ]
+}
